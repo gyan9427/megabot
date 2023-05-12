@@ -1,4 +1,5 @@
 const User = require("../model/User");
+const bcrypt = require('bcrypt');
 
 const CreateUser = async (req, res, next) => {
 
@@ -7,24 +8,24 @@ const CreateUser = async (req, res, next) => {
         res.status(400).json({ msg: "minimum length must be 6" });
     }
 
-    try {
+    bcrypt.hash(password, 10).then(async (hash) => {
+
         await User.create({
             username: username,
-            password: password
+            password: hash
         }).then(user => {
             res.status(200).json({ msg: `User successfully created ${user}` });
+        }).catch(error => {
+            res.status(401).json({ msg: error });
         })
-    } catch (error) {
-        res.status(401).json({ msg: error });
-    }
-
+    })
 }
 
 const UserLogin = async (req, res, next) => {
 
     const { username, password } = req.body;
     if (!username || !password) res.status(401).json({ msg: "Message and password required" })
-    const user = await User.findOne({ username: username, password: password })
+    const user = await User.findOne({ username: username})
     try {
         if (!user) {
             res.status(401).json({
@@ -32,14 +33,19 @@ const UserLogin = async (req, res, next) => {
                 msg: "User not found"
             })
         }
-        else{
-            res.status(200).json({
-                status: "Login successful",
-                user
+        else {
+
+            bcrypt.compare(password, user.password).then(result => {
+                result
+                    ? res.status(200).json({
+                        message: "Login successful",
+                        user,
+                    })
+                    : res.status(400).json({ message: "Login not succesful" })
             })
         }
     } catch (error) {
-        res.status(401).json({error:error})
+        res.status(401).json({ error: error })
     }
 
 }
@@ -58,7 +64,7 @@ const UserLogin = async (req, res, next) => {
 //                               .json({ message: "An error occurred", error: err.message });
 //                             process.exit(1);
 //                         }
-                        
+
 //                         res.status("201").json({ message: "Update successful", user });
 //                     })
 //                 }
